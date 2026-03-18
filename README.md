@@ -112,6 +112,101 @@ if display is not None:
 - You can use return_smooth = True if you hear metallic sounds.
 - Lower t_shift for less possible pronunciation errors but worse quality and vice versa.
 
+## Docker / Podman Deployment
+
+One-command deployment with GPU support. Compatible with Docker and Podman.
+
+### Prerequisites
+- NVIDIA GPU (supports RTX 4090, 5080, etc.)
+- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed
+- Docker (with Docker Compose) or Podman
+
+### Quick Start (Docker)
+
+```bash
+git clone https://github.com/ysharma3501/LuxTTS.git
+cd LuxTTS
+
+# Put your reference audio files into the audio/ folder
+cp /path/to/your_reference.wav audio/
+
+# Build and start the service
+docker compose build && docker compose up -d
+
+# Check logs (first startup downloads the model, may take a few minutes)
+docker logs -f luxtts-api
+```
+
+### Quick Start (Podman)
+
+```bash
+git clone https://github.com/ysharma3501/LuxTTS.git
+cd LuxTTS
+
+cp /path/to/your_reference.wav audio/
+
+bash podman-run.sh
+```
+
+### API Usage
+
+**Health Check:**
+```bash
+curl http://localhost:9880/health
+```
+
+**Synthesize Speech (GET):**
+```bash
+curl "http://localhost:9880/?text=Hello+world&speaker=audio/your_reference.wav" -o output.wav
+```
+
+**Synthesize Speech (POST JSON):**
+```bash
+curl -X POST http://localhost:9880/ \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Hello world", "speaker": "audio/your_reference.wav"}' \
+  -o output.wav
+```
+
+**Browser:**
+```
+http://localhost:9880/?text=你好,测试一下&speaker=audio/your_reference.wav
+```
+
+### API Parameters
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `text`    | Yes      | Text to synthesize |
+| `speaker` | Yes      | Path to reference audio file (relative to project root) |
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DEVICE` | `cuda` | Device: `cuda` or `cpu` |
+| `PORT` | `9880` | Server port |
+| `NUM_STEPS` | `4` | Sampling steps (3-4 recommended) |
+| `GUIDANCE_SCALE` | `3.0` | Classifier-free guidance scale |
+| `T_SHIFT` | `0.5` | Sampling temperature |
+| `SPEED` | `1.0` | Speech speed (1.0 = normal) |
+| `RMS` | `0.01` | Volume control |
+| `REF_DURATION` | `5` | Max reference audio duration (seconds) |
+| `THREADS` | `4` | CPU threads (used when DEVICE=cpu) |
+
+### Management Commands
+
+```bash
+# View logs
+docker logs -f luxtts-api
+
+# Stop service
+docker compose down
+
+# Rebuild after code changes
+docker compose build && docker compose up -d
+```
+
 ## Community
 - [Lux-TTS-Gradio](https://github.com/NidAll/LuxTTS-Gradio): A gradio app to use LuxTTS.
 - [OptiSpeech](https://github.com/ycharfi09/OptiClone): Clean UI app to use LuxTTS.
