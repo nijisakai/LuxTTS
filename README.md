@@ -1,246 +1,145 @@
-# LuxTTS
-<p align="center">
-  <a href="https://huggingface.co/YatharthS/LuxTTS">
-    <img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Model-FFD21E" alt="Hugging Face Model">
-  </a>
-  &nbsp;
-  <a href="https://huggingface.co/spaces/YatharthS/LuxTTS">
-    <img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Space-blue" alt="Hugging Face Space">
-  </a>
-  &nbsp;
-  <a href="https://colab.research.google.com/drive/1cDaxtbSDLRmu6tRV_781Of_GSjHSo1Cu?usp=sharing">
-    <img src="https://img.shields.io/badge/Colab-Notebook-F9AB00?logo=googlecolab&logoColor=white" alt="Colab Notebook">
-  </a>
-</p>
+# LuxTTS Docker API
 
-LuxTTS is an lightweight zipvoice based text-to-speech model designed for high quality voice cloning and realistic generation at speeds exceeding 150x realtime.
+基于 [LuxTTS](https://github.com/ysharma3501/LuxTTS) 的 Docker 容器化 API 服务，支持 Docker 和 Podman。
 
-https://github.com/user-attachments/assets/a3b57152-8d97-43ce-bd99-26dc9a145c29
+## 构建镜像
 
+- **底层镜像**：`nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04`
+- **GPU 支持**：RTX 4090、RTX 5080 等（PyTorch cu128，覆盖 sm_89 ~ sm_120）
+- **模型来源**：首次启动自动从 HuggingFace 下载 [YatharthS/LuxTTS](https://huggingface.co/YatharthS/LuxTTS)
+- **输出音频**：48kHz WAV
 
-### The main features are
-- Voice cloning: SOTA voice cloning on par with models 10x larger.
-- Clarity: Clear 48khz speech generation unlike most TTS models which are limited to 24khz.
-- Speed: Reaches speeds of 150x realtime on a single GPU and faster then realtime on CPU's as well.
-- Efficiency: Fits within 1gb vram meaning it can fit in any local gpu.
+## 前置要求
 
-## Usage
-You can try it locally, colab, or spaces.
+- NVIDIA GPU
+- 已安装 [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+- Docker（含 Docker Compose）或 Podman
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1cDaxtbSDLRmu6tRV_781Of_GSjHSo1Cu?usp=sharing)
-[![Open in Spaces](https://huggingface.co/datasets/huggingface/badges/resolve/main/open-in-hf-spaces-sm.svg)](https://huggingface.co/spaces/YatharthS/LuxTTS)
+## 快速开始
 
-#### Simple installation:
-```
-git clone https://github.com/ysharma3501/LuxTTS.git
-cd LuxTTS
-pip install -r requirements.txt
-```
-
-#### Load model:
-```python
-from zipvoice.luxvoice import LuxTTS
-
-# load model on GPU
-lux_tts = LuxTTS('YatharthS/LuxTTS', device='cuda')
-
-# load model on CPU
-# lux_tts = LuxTTS('YatharthS/LuxTTS', device='cpu', threads=2)
-
-# load model on MPS for macs
-# lux_tts = LuxTTS('YatharthS/LuxTTS', device='mps')
-```
-
-#### Simple inference
-```python
-import soundfile as sf
-from IPython.display import Audio
-
-text = "Hey, what's up? I'm feeling really great if you ask me honestly!"
-
-## change this to your reference file path, can be wav/mp3
-prompt_audio = 'audio_file.wav'
-
-## encode audio(takes 10s to init because of librosa first time)
-encoded_prompt = lux_tts.encode_prompt(prompt_audio, rms=0.01)
-
-## generate speech
-final_wav = lux_tts.generate_speech(text, encoded_prompt, num_steps=4)
-
-## save audio
-final_wav = final_wav.numpy().squeeze()
-sf.write('output.wav', final_wav, 48000)
-
-## display speech
-if display is not None:
-  display(Audio(final_wav, rate=48000))
-```
-
-#### Inference with sampling params:
-```python
-import soundfile as sf
-from IPython.display import Audio
-
-text = "Hey, what's up? I'm feeling really great if you ask me honestly!"
-
-## change this to your reference file path, can be wav/mp3
-prompt_audio = 'audio_file.wav'
-
-rms = 0.01 ## higher makes it sound louder(0.01 or so recommended)
-t_shift = 0.9 ## sampling param, higher can sound better but worse WER
-num_steps = 4 ## sampling param, higher sounds better but takes longer(3-4 is best for efficiency)
-speed = 1.0 ## sampling param, controls speed of audio(lower=slower)
-return_smooth = False ## sampling param, makes it sound smoother possibly but less cleaner
-ref_duration = 5 ## Setting it lower can speedup inference, set to 1000 if you find artifacts.
-
-## encode audio(takes 10s to init because of librosa first time)
-encoded_prompt = lux_tts.encode_prompt(prompt_audio, duration=ref_duration, rms=rms)
-
-## generate speech
-final_wav = lux_tts.generate_speech(text, encoded_prompt, num_steps=num_steps, t_shift=t_shift, speed=speed, return_smooth=return_smooth)
-
-## save audio
-final_wav = final_wav.numpy().squeeze()
-sf.write('output.wav', final_wav, 48000)
-
-## display speech
-if display is not None:
-  display(Audio(final_wav, rate=48000))
-```
-## Tips
-- Please use at minimum a 3 second audio file for voice cloning.
-- You can use return_smooth = True if you hear metallic sounds.
-- Lower t_shift for less possible pronunciation errors but worse quality and vice versa.
-
-## Docker / Podman Deployment
-
-One-command deployment with GPU support. Compatible with Docker and Podman.
-
-### Prerequisites
-- NVIDIA GPU (supports RTX 4090, 5080, etc.)
-- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed
-- Docker (with Docker Compose) or Podman
-
-### Quick Start (Docker)
+### Docker
 
 ```bash
-git clone https://github.com/ysharma3501/LuxTTS.git
+git clone https://github.com/nijisakai/LuxTTS.git
 cd LuxTTS
 
-# Put your reference audio files into the audio/ folder
-cp /path/to/your_reference.wav audio/
+# 将参考音频放入 audio/ 目录（项目已包含示例音频）
+# cp /path/to/your_reference.wav audio/
 
-# Build and start the service
+# 构建并启动
 docker compose build && docker compose up -d
 
-# Check logs (first startup downloads the model, may take a few minutes)
+# 查看日志（首次启动需下载模型，约需几分钟）
 docker logs -f luxtts-api
 ```
 
-### Quick Start (Podman)
+### Podman
 
 ```bash
-git clone https://github.com/ysharma3501/LuxTTS.git
+git clone https://github.com/nijisakai/LuxTTS.git
 cd LuxTTS
-
-cp /path/to/your_reference.wav audio/
 
 bash podman-run.sh
 ```
 
-### API Usage
+## 注意事项
 
-**Health Check:**
-```bash
-curl http://localhost:9880/health
+1. **首次启动较慢**：需要从 HuggingFace 下载约 1GB 模型，模型会缓存到 Docker volume 中，后续启动无需重复下载
+2. **参考音频要求**：至少 3 秒，支持 wav/mp3 格式，放入 `audio/` 目录即可
+3. **网络问题**：如果构建时遇到 apt 源连接失败，Dockerfile 已配置清华 HTTPS 镜像源；HuggingFace 下载慢可设置环境变量 `HF_ENDPOINT=https://hf-mirror.com`
+4. **显存占用**：约 1GB VRAM，几乎所有独立 GPU 都能运行
+5. **Podman SELinux**：volume 挂载已使用 `:z` 标记，`podman-run.sh` 已添加 `--security-opt=label=disable`
+
+## API 接口
+
+**服务地址**：`http://localhost:9880`
+
+### 合成语音
+
+```
+GET  http://localhost:9880/?text=要合成的文本&speaker=audio/参考音频.wav
+POST http://localhost:9880/  (支持 form 和 JSON body)
 ```
 
-**Synthesize Speech (GET):**
-```bash
-curl "http://localhost:9880/?text=Hello+world&speaker=audio/your_reference.wav" -o output.wav
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `text` | 是 | 待合成文本 |
+| `speaker` | 是 | 参考音频路径（相对于项目根目录） |
+
+**返回**：WAV 音频流（48kHz）
+
+### 使用示例
+
+**浏览器直接访问：**
+```
+http://localhost:9880/?text=你好,测试一下&speaker=audio/花魁.wav
 ```
 
-**Synthesize Speech (POST JSON):**
+**curl 命令：**
 ```bash
+# GET 请求
+curl "http://localhost:9880/?text=你好世界&speaker=audio/花魁.wav" -o output.wav
+
+# POST JSON
 curl -X POST http://localhost:9880/ \
   -H "Content-Type: application/json" \
-  -d '{"text": "Hello world", "speaker": "audio/your_reference.wav"}' \
+  -d '{"text": "你好世界", "speaker": "audio/花魁.wav"}' \
   -o output.wav
 ```
 
-**Browser:**
-```
-http://localhost:9880/?text=你好,测试一下&speaker=audio/your_reference.wav
-```
-
-### API Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `text`    | Yes      | Text to synthesize |
-| `speaker` | Yes      | Path to reference audio file (relative to project root) |
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DEVICE` | `cuda` | Device: `cuda` or `cpu` |
-| `PORT` | `9880` | Server port |
-| `NUM_STEPS` | `4` | Sampling steps (3-4 recommended) |
-| `GUIDANCE_SCALE` | `3.0` | Classifier-free guidance scale |
-| `T_SHIFT` | `0.5` | Sampling temperature |
-| `SPEED` | `1.0` | Speech speed (1.0 = normal) |
-| `RMS` | `0.01` | Volume control |
-| `REF_DURATION` | `5` | Max reference audio duration (seconds) |
-| `THREADS` | `4` | CPU threads (used when DEVICE=cpu) |
-
-### Management Commands
+### 健康检查
 
 ```bash
-# View logs
-docker logs -f luxtts-api
-
-# Stop service
-docker compose down
-
-# Rebuild after code changes
-docker compose build && docker compose up -d
+curl http://localhost:9880/health
+# 返回: {"status": "ok", "device": "cuda"}
 ```
 
-## Community
-- [Lux-TTS-Gradio](https://github.com/NidAll/LuxTTS-Gradio): A gradio app to use LuxTTS.
-- [OptiSpeech](https://github.com/ycharfi09/OptiClone): Clean UI app to use LuxTTS.
-- [LuxTTS-Comfyui](https://github.com/DragonDiffusionbyBoyo/BoyoLuxTTS-Comfyui.git): Nodes to use LuxTTS in comfyui.
+## 示例音频
 
-Thanks to all community contributions!
+项目 `audio/` 目录已包含以下参考音色：
 
-## Info
+| 文件 | 音色 |
+|------|------|
+| `audio/花魁.wav` | 花魁 |
+| `audio/厨娘.wav` | 厨娘 |
+| `audio/大叔.wav` | 大叔 |
+| `audio/付雅雯.wav` | 付雅雯 |
+| `audio/龚晓.wav` | 龚晓 |
 
-Q: How is this different from ZipVoice?
+## 环境变量
 
-A: LuxTTS uses the same architecture but distilled to 4 steps with an improved sampling technique. It also uses a custom 48khz vocoder instead of the default 24khz version.
+可在 `docker-compose.yml` 或启动命令中修改：
 
-Q: Can it be even faster?
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `DEVICE` | `cuda` | 运行设备（`cuda` 或 `cpu`） |
+| `PORT` | `9880` | 服务端口 |
+| `NUM_STEPS` | `4` | 采样步数（3-4 为最佳效率） |
+| `GUIDANCE_SCALE` | `3.0` | 引导尺度 |
+| `T_SHIFT` | `0.5` | 采样温度（越高质量越好但可能有发音错误） |
+| `SPEED` | `1.0` | 语速（1.0=正常，>1.0=加速） |
+| `RMS` | `0.01` | 音量控制（越大越响） |
+| `REF_DURATION` | `5` | 参考音频最大时长（秒） |
+| `THREADS` | `4` | CPU 线程数（仅 `DEVICE=cpu` 时生效） |
 
-A: Yes, currently it uses float32. Float16 should be significantly faster(almost 2x).
+## 管理命令
 
-## Roadmap
+```bash
+# 查看日志
+docker logs -f luxtts-api
 
-- [x] Release model and code
-- [x] Huggingface spaces demo
-- [x] Release MPS support (thanks to @builtbybasit)
-- [ ] Release LuxTTS v1.5
-- [ ] Release code for float16 inference
+# 停止服务
+docker compose down
 
-## Acknowledgments
+# 重建并重启
+docker compose build && docker compose up -d
 
-- [ZipVoice](https://github.com/k2-fsa/ZipVoice) for their excellent code and model.
-- [Vocos](https://github.com/gemelo-ai/vocos.git) for their great vocoder.
-  
-## Final Notes
+# Podman 查看日志
+podman logs -f luxtts-api
+```
 
-The model and code are licensed under the Apache-2.0 license. See LICENSE for details.
+## 致谢
 
-Stars/Likes would be appreciated, thank you.
-
-Email: yatharthsharma350@gmail.com
+- [LuxTTS](https://github.com/ysharma3501/LuxTTS) — 原始项目
+- [ZipVoice](https://github.com/k2-fsa/ZipVoice) — 模型架构
+- [Vocos](https://github.com/gemelo-ai/vocos.git) — 声码器
