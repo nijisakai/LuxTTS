@@ -139,6 +139,36 @@ docker compose build && docker compose up -d
 podman logs -f luxtts-api
 ```
 
+## 镜像迁移（离线部署到其他机器）
+
+构建完成后，可以将镜像导出到其他机器直接使用，无需网络。
+
+### 导出镜像（当前机器）
+
+```bash
+# Docker 导出
+docker save luxtts-luxtts | gzip > luxtts-image.tar.gz
+
+# Podman 导出
+podman save luxtts-api | gzip > luxtts-image.tar.gz
+```
+
+### 导入镜像（目标机器）
+
+```bash
+# Docker 导入
+docker load < luxtts-image.tar.gz
+cd LuxTTS
+docker compose up -d
+
+# Podman 导入
+podman load < luxtts-image.tar.gz
+cd LuxTTS
+bash podman-run.sh
+```
+
+> Docker 和 Podman 镜像格式互相兼容，`docker save` 导出的可以用 `podman load` 导入，反之亦然。
+
 ## 致谢
 
 - [LuxTTS](https://github.com/ysharma3501/LuxTTS) — 原始项目
