@@ -15,7 +15,6 @@ services:
       - "9880:9880"
     volumes:
       - ./audio:/app/audio:z          # :z 标记兼容 Podman SELinux
-      - huggingface_cache:/root/.cache/huggingface
     environment:
       - DEVICE=cuda
       - PORT=9880
@@ -37,6 +36,3 @@ services:
     restart: unless-stopped
     # Podman 不支持 deploy.resources，用 --device 替代
     # 使用 podman 时请参考下方 podman-run.sh
-
-volumes:
-  huggingface_cache:

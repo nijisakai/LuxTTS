@@ -6,7 +6,8 @@
 
 - **底层镜像**：`nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04`
 - **GPU 支持**：RTX 4090、RTX 5080 等（PyTorch cu128，覆盖 sm_89 ~ sm_120）
-- **模型来源**：首次启动自动从 HuggingFace 下载 [YatharthS/LuxTTS](https://huggingface.co/YatharthS/LuxTTS)
+- **模型来源**：构建时自动从 HuggingFace 下载并打包进镜像，运行时完全离线
+- **离线运行**：构建完成后不再需要网络连接
 - **输出音频**：48kHz WAV
 
 ## 前置要求
@@ -44,9 +45,9 @@ bash podman-run.sh
 
 ## 注意事项
 
-1. **首次启动较慢**：需要从 HuggingFace 下载约 1GB 模型，模型会缓存到 Docker volume 中，后续启动无需重复下载
+1. **构建需要网络**：构建阶段会下载约 1.4GB 模型文件（LuxTTS + Whisper），全部打包进镜像，构建完成后运行完全离线
 2. **参考音频要求**：至少 3 秒，支持 wav/mp3 格式，放入 `audio/` 目录即可
-3. **网络问题**：如果构建时遇到 apt 源连接失败，Dockerfile 已配置清华 HTTPS 镜像源；HuggingFace 下载慢可设置环境变量 `HF_ENDPOINT=https://hf-mirror.com`
+3. **网络问题**：如果构建时遇到 apt 源连接失败，Dockerfile 已配置清华 HTTPS 镜像源；HuggingFace 下载慢可在 Dockerfile 中添加 `ENV HF_ENDPOINT=https://hf-mirror.com`
 4. **显存占用**：约 1GB VRAM，几乎所有独立 GPU 都能运行
 5. **Podman SELinux**：volume 挂载已使用 `:z` 标记，`podman-run.sh` 已添加 `--security-opt=label=disable`
 

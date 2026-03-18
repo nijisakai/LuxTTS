@@ -33,6 +33,16 @@ COPY . .
 # 创建 audio 目录（用于挂载参考音频）
 RUN mkdir -p /app/audio
 
+# 构建时预下载模型（运行时完全离线）
+RUN python3 -c "\
+from huggingface_hub import snapshot_download; \
+snapshot_download('YatharthS/LuxTTS'); \
+print('LuxTTS model downloaded')"
+RUN python3 -c "\
+from transformers import pipeline; \
+pipeline('automatic-speech-recognition', model='openai/whisper-base'); \
+print('Whisper model downloaded')"
+
 # 暴露端口
 EXPOSE 9880
 
