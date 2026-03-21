@@ -9,11 +9,12 @@
 
 services:
   luxtts:
+    image: luxtts-npu
     build:
       context: .
       dockerfile: Dockerfile.npu
       network: host
-    container_name: luxtts-api
+    container_name: luxtts-npu
     ports:
       - "9880:9880"
     volumes:

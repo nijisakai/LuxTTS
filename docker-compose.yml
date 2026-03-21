@@ -6,11 +6,12 @@
 
 services:
   luxtts:
+    image: luxtts-gpu
     build:
       context: .
       dockerfile: Dockerfile
       network: host
-    container_name: luxtts-api
+    container_name: luxtts-gpu
     ports:
       - "9880:9880"
     volumes:

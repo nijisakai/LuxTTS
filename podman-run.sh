@@ -5,8 +5,8 @@
 # ──────────────────────────────────────────────────────────────
 set -euo pipefail
 
-IMAGE_NAME="luxtts-api"
-CONTAINER_NAME="luxtts-api"
+IMAGE_NAME="luxtts-gpu"
+CONTAINER_NAME="luxtts-gpu"
 PORT="${PORT:-9880}"
 AUDIO_DIR="$(cd "$(dirname "$0")" && pwd)/audio"
 

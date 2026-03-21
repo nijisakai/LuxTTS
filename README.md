@@ -4,15 +4,24 @@
 
 ## 三个版本
 
-| 版本 | 底层镜像 | 推理引擎 | 适用场景 |
-|------|---------|---------|----------|
-| **GPU** | `nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04` | PyTorch CUDA (cu128) | NVIDIA GPU（RTX 4090/5080 等） |
-| **CPU** | `ubuntu:22.04` | ONNX Runtime CPU | 无 GPU 机器，兼容性最好 |
-| **NPU** | `ubuntu:22.04` | ONNX Runtime + OpenVINO | Intel NPU（Core Ultra 等） |
+| 版本 | 镜像名称 | 容器名称 | 底层镜像 | 推理引擎 | 适用场景 |
+|------|---------|---------|---------|---------|----------|
+| **GPU** | `luxtts-gpu` | `luxtts-gpu` | `nvidia/cuda:12.8.1` | PyTorch CUDA (cu128) | NVIDIA GPU（RTX 4090/5080 等） |
+| **CPU** | `luxtts-cpu` | `luxtts-cpu` | `ubuntu:22.04` | ONNX Runtime CPU | 无 GPU 机器，兼容性最好 |
+| **NPU** | `luxtts-npu` | `luxtts-npu` | `ubuntu:22.04` | ONNX Runtime + OpenVINO | Intel NPU（Core Ultra 等） |
 
 - **模型来源**：构建时自动从 HuggingFace 下载并打包进镜像，运行时完全离线
 - **离线运行**：构建完成后不再需要网络连接
 - **输出音频**：48kHz WAV
+
+## 运行环境说明
+
+| 操作 | 终端环境 |
+|------|---------|
+| GPU / CPU Docker 构建和运行 | 🐧 **WSL2 终端** 或 Linux 终端 |
+| NPU Docker 构建和运行 | 🐧 **原生 Linux 终端**（WSL2 不支持 NPU 透传） |
+| NPU Windows 原生运行 | 🪟 **Windows PowerShell** |
+| Podman 构建和运行 | 🐧 **WSL2 终端** 或 Linux 终端 |
 
 ## 前置要求
 
@@ -25,15 +34,23 @@
 - Docker（含 Docker Compose）或 Podman
 - 无需 GPU，推理较慢但兼容性好
 
-### NPU 版本
+### NPU 版本（Docker）
 - Intel Core Ultra 或其他带 NPU 的 Intel 处理器
 - 已安装 Intel NPU 驱动（`intel-npu-driver`）
 - 宿主机能看到 `/dev/accel/accel0` 设备
-- Docker（含 Docker Compose）或 Podman
+- **仅原生 Linux**，WSL2 不支持 NPU 透传
+
+### NPU 版本（Windows 原生）
+- Intel Core Ultra 或其他带 NPU 的 Intel 处理器
+- 已安装 Intel NPU 驱动
+- Python 3.10+
+- 无需 Docker
 
 ## 快速开始
 
 ### GPU 版本
+
+> 🐧 以下命令在 **WSL2 终端** 或 **Linux 终端** 中执行
 
 #### Docker
 
@@ -44,11 +61,11 @@ cd LuxTTS
 # 将参考音频放入 audio/ 目录（项目已包含示例音频）
 # cp /path/to/your_reference.wav audio/
 
-# 构建并启动
+# 构建并启动（镜像名：luxtts-gpu）
 docker compose build && docker compose up -d
 
-# 查看日志（首次启动需下载模型，约需几分钟）
-docker logs -f luxtts-api
+# 查看日志
+docker logs -f luxtts-gpu
 ```
 
 #### Podman
@@ -62,17 +79,19 @@ bash podman-run.sh
 
 ### CPU 版本（无需 GPU）
 
+> 🐧 以下命令在 **WSL2 终端** 或 **Linux 终端** 中执行
+
 #### Docker
 
 ```bash
 git clone https://github.com/nijisakai/LuxTTS.git
 cd LuxTTS
 
-# 构建并启动 CPU 版本
+# 构建并启动 CPU 版本（镜像名：luxtts-cpu）
 docker compose -f docker-compose.cpu.yml build && docker compose -f docker-compose.cpu.yml up -d
 
 # 查看日志
-docker logs -f luxtts-api
+docker logs -f luxtts-cpu
 ```
 
 #### Podman
@@ -86,7 +105,9 @@ podman-compose -f docker-compose.cpu.yml build && podman-compose -f docker-compo
 
 > CPU 版本使用 `whisper-tiny` 模型（GPU 版用 `whisper-base`），镜像体积更小，但推理速度较慢。
 
-### NPU 版本（Intel Core Ultra）
+### NPU 版本 - Docker（Intel Core Ultra）
+
+> 🐧 以下命令在 **原生 Linux 终端** 中执行（WSL2 不支持 NPU 透传）
 
 #### Docker
 
@@ -94,11 +115,11 @@ podman-compose -f docker-compose.cpu.yml build && podman-compose -f docker-compo
 git clone https://github.com/nijisakai/LuxTTS.git
 cd LuxTTS
 
-# 构建并启动 NPU 版本
+# 构建并启动 NPU 版本（镜像名：luxtts-npu）
 docker compose -f docker-compose.npu.yml build && docker compose -f docker-compose.npu.yml up -d
 
 # 查看日志
-docker logs -f luxtts-api
+docker logs -f luxtts-npu
 ```
 
 #### Podman
@@ -113,11 +134,11 @@ podman-compose -f docker-compose.npu.yml build && podman-compose -f docker-compo
 > NPU 版本通过 ONNX Runtime + OpenVINO 执行推理，Text Encoder 和 FM Decoder 在 NPU 上运行，Vocoder 在 CPU 上运行。
 > 如果系统没有 NPU 设备，可将 `OPENVINO_DEVICE` 环境变量改为 `CPU`，仍可享受 OpenVINO 对 Intel CPU 的加速。
 
-> **注意**：Linux Docker/Podman 需要 `/dev/accel` 设备。WSL2 目前不支持 NPU 透传，Windows 用户请用下面的原生方式。
+### NPU 版本 - Windows 原生（推荐 Windows 用户使用）
 
-### NPU 版本 - Windows 原生（推荐）
+> 🪟 以下命令在 **Windows PowerShell** 中执行
 
-Windows 下 Docker/Podman 无法访问 Intel NPU，需要用原生 Python 运行：
+Windows 下 Docker/WSL2 无法访问 Intel NPU，需要用原生 Python 运行：
 
 ```powershell
 git clone https://github.com/nijisakai/LuxTTS.git
@@ -167,7 +188,7 @@ POST http://localhost:9880/  (支持 form 和 JSON body)
 http://localhost:9880/?text=你好,测试一下&speaker=audio/花魁.wav
 ```
 
-**curl 命令：**
+**curl 命令（🐧 WSL / Linux）：**
 ```bash
 # GET 请求
 curl "http://localhost:9880/?text=你好世界&speaker=audio/花魁.wav" -o output.wav
@@ -177,6 +198,11 @@ curl -X POST http://localhost:9880/ \
   -H "Content-Type: application/json" \
   -d '{"text": "你好世界", "speaker": "audio/花魁.wav"}' \
   -o output.wav
+```
+
+**PowerShell（🪟 Windows）：**
+```powershell
+Invoke-WebRequest "http://localhost:9880/?text=你好世界&speaker=audio/花魁.wav" -OutFile output.wav
 ```
 
 ### 健康检查
@@ -200,7 +226,7 @@ curl http://localhost:9880/health
 
 ## 环境变量
 
-可在 `docker-compose.yml` 或启动命令中修改：
+可在对应的 `docker-compose*.yml` 或启动命令中修改：
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
@@ -217,50 +243,60 @@ curl http://localhost:9880/health
 
 ## 管理命令
 
+> 🐧 以下命令在 **WSL2 终端** 或 **Linux 终端** 中执行
+
 ```bash
 # ---- GPU 版本 ----
-docker logs -f luxtts-api
-docker compose down
-docker compose build && docker compose up -d
+docker logs -f luxtts-gpu           # 查看日志
+docker compose down                  # 停止
+docker compose build && docker compose up -d  # 重新构建并启动
 
 # ---- CPU 版本 ----
-docker logs -f luxtts-api
+docker logs -f luxtts-cpu           # 查看日志
 docker compose -f docker-compose.cpu.yml down
 docker compose -f docker-compose.cpu.yml build && docker compose -f docker-compose.cpu.yml up -d
 
-# ---- NPU 版本 ----
-docker logs -f luxtts-api
+# ---- NPU 版本（仅原生 Linux） ----
+docker logs -f luxtts-npu           # 查看日志
 docker compose -f docker-compose.npu.yml down
 docker compose -f docker-compose.npu.yml build && docker compose -f docker-compose.npu.yml up -d
 
-# Podman 查看日志
-podman logs -f luxtts-api
+# ---- Podman ----
+podman logs -f luxtts-gpu           # GPU 版本日志
 ```
 
 ## 镜像迁移（离线部署到其他机器）
 
 构建完成后，可以将镜像导出到其他机器直接使用，无需网络。
 
+> 🐧 以下命令在 **WSL2 终端** 或 **Linux 终端** 中执行
+
 ### 导出镜像（当前机器）
 
 ```bash
-# Docker 导出
-docker save luxtts-luxtts | gzip > luxtts-image.tar.gz
+# GPU 版本
+docker save luxtts-gpu | gzip > luxtts-gpu.tar.gz
 
-# Podman 导出
-podman save luxtts-api | gzip > luxtts-image.tar.gz
+# CPU 版本
+docker save luxtts-cpu | gzip > luxtts-cpu.tar.gz
+
+# NPU 版本
+docker save luxtts-npu | gzip > luxtts-npu.tar.gz
+
+# Podman 导出（以 GPU 版本为例）
+podman save luxtts-gpu | gzip > luxtts-gpu.tar.gz
 ```
 
 ### 导入镜像（目标机器）
 
 ```bash
-# Docker 导入
-docker load < luxtts-image.tar.gz
+# Docker 导入（以 GPU 版本为例）
+docker load < luxtts-gpu.tar.gz
 cd LuxTTS
 docker compose up -d
 
 # Podman 导入
-podman load < luxtts-image.tar.gz
+podman load < luxtts-gpu.tar.gz
 cd LuxTTS
 bash podman-run.sh
 ```

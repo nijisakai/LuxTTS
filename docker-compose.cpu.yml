@@ -6,11 +6,12 @@
 
 services:
   luxtts:
+    image: luxtts-cpu
     build:
       context: .
       dockerfile: Dockerfile.cpu
       network: host
-    container_name: luxtts-api
+    container_name: luxtts-cpu
     ports:
       - "9880:9880"
     volumes:
