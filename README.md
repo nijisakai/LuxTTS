@@ -174,35 +174,66 @@ GET  http://localhost:9880/?text=要合成的文本&speaker=audio/参考音频.w
 POST http://localhost:9880/  (支持 form 和 JSON body)
 ```
 
-| 参数 | 必填 | 说明 |
-|------|------|------|
-| `text` | 是 | 待合成文本 |
-| `speaker` | 是 | 参考音频路径（相对于项目根目录） |
+| 参数 | 必填 | 类型 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `text` | 是 | string | — | 待合成文本 |
+| `speaker` | 是 | string | — | 参考音频路径（相对于项目根目录） |
+| `num_steps` | 否 | int | `4` | 采样步数，值越大质量越好但更慢（推荐 3-4） |
+| `guidance_scale` | 否 | float | `3.0` | 引导尺度，控制与参考音色的相似度 |
+| `t_shift` | 否 | float | `0.5` | 采样温度，越高质量越好但可能有发音错误 |
+| `speed` | 否 | float | `1.0` | 语速控制（1.0=正常，>1.0=加速，<1.0=减速） |
+| `rms` | 否 | float | `0.01` | 音量控制，越大越响（推荐 0.01） |
+| `ref_duration` | 否 | int | `5` | 参考音频最大时长（秒），降低可加速推理，如有瑕疵可设为 1000 |
+| `return_smooth` | 否 | bool | `false` | 平滑模式，听到金属音时可设为 true |
+
+> 所有可选参数不传时使用环境变量默认值（见下方环境变量表）。
 
 **返回**：WAV 音频流（48kHz）
 
 ### 使用示例
 
-**浏览器直接访问：**
+**浏览器直接访问（最简单）：**
 ```
 http://localhost:9880/?text=你好,测试一下&speaker=audio/花魁.wav
 ```
 
+**带参数调整：**
+```
+http://localhost:9880/?text=你好&speaker=audio/花魁.wav&speed=1.2&t_shift=0.9&num_steps=4
+```
+
 **curl 命令（🐧 WSL / Linux）：**
 ```bash
-# GET 请求
+# GET 请求 - 基础用法
 curl "http://localhost:9880/?text=你好世界&speaker=audio/花魁.wav" -o output.wav
 
-# POST JSON
+# GET 请求 - 带参数
+curl "http://localhost:9880/?text=你好世界&speaker=audio/花魁.wav&speed=1.2&t_shift=0.9&num_steps=4&return_smooth=true" -o output.wav
+
+# POST JSON - 全参数
 curl -X POST http://localhost:9880/ \
   -H "Content-Type: application/json" \
-  -d '{"text": "你好世界", "speaker": "audio/花魁.wav"}' \
+  -d '{
+    "text": "你好世界",
+    "speaker": "audio/花魁.wav",
+    "num_steps": 4,
+    "guidance_scale": 3.0,
+    "t_shift": 0.9,
+    "speed": 1.0,
+    "rms": 0.01,
+    "ref_duration": 5,
+    "return_smooth": false
+  }' \
   -o output.wav
 ```
 
 **PowerShell（🪟 Windows）：**
 ```powershell
+# 基础用法
 Invoke-WebRequest "http://localhost:9880/?text=你好世界&speaker=audio/花魁.wav" -OutFile output.wav
+
+# 带参数
+Invoke-WebRequest "http://localhost:9880/?text=你好世界&speaker=audio/花魁.wav&speed=1.2&t_shift=0.9" -OutFile output.wav
 ```
 
 ### 健康检查
