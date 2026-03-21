@@ -24,7 +24,7 @@ if not exist ".venv" (
 call .venv\Scripts\activate.bat
 
 echo [2/5] 升级 pip 并安装基础工具...
-pip install --upgrade pip
+python -m pip install --upgrade pip
 pip install uv
 
 echo [3/5] 安装 CPU 版 PyTorch（NPU 推理由 OpenVINO 处理）...
