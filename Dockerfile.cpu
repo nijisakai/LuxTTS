@@ -1,5 +1,5 @@
 # CPU 版本构建（无需 NVIDIA GPU）
-FROM docker.1ms.run/ubuntu:22.04
+FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
