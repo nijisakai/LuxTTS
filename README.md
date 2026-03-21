@@ -4,7 +4,8 @@
 
 ## 构建镜像
 
-- **底层镜像**：`nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04`
+- **底层镜像（GPU）**：`nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04`
+- **底层镜像（CPU）**：`ubuntu:22.04`
 - **GPU 支持**：RTX 4090、RTX 5080 等（PyTorch cu128，覆盖 sm_89 ~ sm_120）
 - **模型来源**：构建时自动从 HuggingFace 下载并打包进镜像，运行时完全离线
 - **离线运行**：构建完成后不再需要网络连接
@@ -12,13 +13,20 @@
 
 ## 前置要求
 
+### GPU 版本
 - NVIDIA GPU
 - 已安装 [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
 - Docker（含 Docker Compose）或 Podman
 
+### CPU 版本
+- Docker（含 Docker Compose）或 Podman
+- 无需 GPU，推理较慢但兼容性好
+
 ## 快速开始
 
-### Docker
+### GPU 版本
+
+#### Docker
 
 ```bash
 git clone https://github.com/nijisakai/LuxTTS.git
@@ -34,7 +42,7 @@ docker compose build && docker compose up -d
 docker logs -f luxtts-api
 ```
 
-### Podman
+#### Podman
 
 ```bash
 git clone https://github.com/nijisakai/LuxTTS.git
@@ -42,6 +50,32 @@ cd LuxTTS
 
 bash podman-run.sh
 ```
+
+### CPU 版本（无需 GPU）
+
+#### Docker
+
+```bash
+git clone https://github.com/nijisakai/LuxTTS.git
+cd LuxTTS
+
+# 构建并启动 CPU 版本
+docker compose -f docker-compose.cpu.yml build && docker compose -f docker-compose.cpu.yml up -d
+
+# 查看日志
+docker logs -f luxtts-api
+```
+
+#### Podman
+
+```bash
+git clone https://github.com/nijisakai/LuxTTS.git
+cd LuxTTS
+
+podman-compose -f docker-compose.cpu.yml build && podman-compose -f docker-compose.cpu.yml up -d
+```
+
+> CPU 版本使用 `whisper-tiny` 模型（GPU 版用 `whisper-base`），镜像体积更小，但推理速度较慢。
 
 ## 注意事项
 
@@ -126,14 +160,15 @@ curl http://localhost:9880/health
 ## 管理命令
 
 ```bash
-# 查看日志
+# ---- GPU 版本 ----
 docker logs -f luxtts-api
-
-# 停止服务
 docker compose down
-
-# 重建并重启
 docker compose build && docker compose up -d
+
+# ---- CPU 版本 ----
+docker logs -f luxtts-api
+docker compose -f docker-compose.cpu.yml down
+docker compose -f docker-compose.cpu.yml build && docker compose -f docker-compose.cpu.yml up -d
 
 # Podman 查看日志
 podman logs -f luxtts-api
