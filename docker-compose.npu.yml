@@ -1,5 +1,8 @@
 # docker-compose.npu.yml
 # Intel NPU 版本（通过 OpenVINO 加速）
+# 仅适用于原生 Linux（需要 /dev/accel 设备）
+# WSL2 不支持 NPU 透传，WSL2 用户请用 docker-compose.cpu.yml 或 Windows 原生运行
+#
 # 用法:
 #   Docker:  docker compose -f docker-compose.npu.yml up -d
 #   Podman:  podman-compose -f docker-compose.npu.yml up -d

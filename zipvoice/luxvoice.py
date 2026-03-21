@@ -23,12 +23,23 @@ class LuxTTS:
 
         if device == 'npu':
             openvino_device = os.environ.get("OPENVINO_DEVICE", "NPU")
-            providers = [
-                ("OpenVINOExecutionProvider", {"device_type": openvino_device}),
-                "CPUExecutionProvider",
-            ]
+            # 检测 OpenVINO 是否可用
+            try:
+                import onnxruntime as ort
+                available = ort.get_available_providers()
+                if "OpenVINOExecutionProvider" in available:
+                    providers = [
+                        ("OpenVINOExecutionProvider", {"device_type": openvino_device}),
+                        "CPUExecutionProvider",
+                    ]
+                    print(f"Loading model with OpenVINO (device={openvino_device})")
+                else:
+                    providers = None
+                    print("OpenVINO not available, falling back to CPU")
+            except Exception:
+                providers = None
+                print("OpenVINO detection failed, falling back to CPU")
             model, feature_extractor, vocos, tokenizer, transcriber = load_models_cpu(model_path, threads, providers=providers)
-            print(f"Loading model on Intel NPU (OpenVINO device={openvino_device})")
         elif device == 'cpu':
             model, feature_extractor, vocos, tokenizer, transcriber = load_models_cpu(model_path, threads)
             print("Loading model on CPU")
