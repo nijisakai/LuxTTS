@@ -53,13 +53,15 @@ class LuxTTS:
         self.tokenizer = tokenizer
         self.transcriber = transcriber
         self.device = device
+        # NPU 模式下 PyTorch 张量仍在 CPU 上，仅 ONNX 走 OpenVINO
+        self.torch_device = "cpu" if device == "npu" else device
         self.vocos.freq_range = 12000
 
 
 
     def encode_prompt(self, prompt_audio, duration=5, rms=0.001):
         """encodes audio prompt according to duration and rms(volume control)"""
-        prompt_tokens, prompt_features_lens, prompt_features, prompt_rms = process_audio(prompt_audio, self.transcriber, self.tokenizer, self.feature_extractor, self.device, target_rms=rms, duration=duration)
+        prompt_tokens, prompt_features_lens, prompt_features, prompt_rms = process_audio(prompt_audio, self.transcriber, self.tokenizer, self.feature_extractor, self.torch_device, target_rms=rms, duration=duration)
         encode_dict = {"prompt_tokens": prompt_tokens, 'prompt_features_lens': prompt_features_lens, 'prompt_features': prompt_features, 'prompt_rms': prompt_rms}
 
         return encode_dict
