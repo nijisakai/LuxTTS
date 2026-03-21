@@ -28,7 +28,7 @@ echo 设备: Intel NPU (OpenVINO)
 echo 端口: %PORT%
 echo.
 echo 首次运行会自动下载模型（约1.4GB），请耐心等待...
-echo 启动后访问: http://localhost:%PORT%/?text=你好&speaker=audio/花魁.wav
+echo 启动后访问: http://localhost:%PORT%/?text=你好^&speaker=audio/花魁.wav
 echo.
 
 python api_server.py
