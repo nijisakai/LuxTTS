@@ -11,6 +11,18 @@ echo.
 :: 激活虚拟环境
 call .venv\Scripts\activate.bat
 
+:: 将 OpenVINO DLL 加入 PATH（onnxruntime-openvino 依赖）
+for /f "delims=" %%i in ('python -c "import openvino; import os; print(os.path.join(os.path.dirname(openvino.__file__), 'libs'))"') do set "OV_LIBS=%%i"
+if defined OV_LIBS (
+    set "PATH=%OV_LIBS%;%PATH%"
+    echo OpenVINO libs: %OV_LIBS%
+)
+
+:: 先杀掉之前占用端口的进程
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":9880.*LISTENING"') do (
+    taskkill /F /PID %%a >nul 2>&1
+)
+
 :: 环境变量配置
 set DEVICE=npu
 set OPENVINO_DEVICE=NPU
@@ -28,7 +40,7 @@ echo 设备: Intel NPU (OpenVINO)
 echo 端口: %PORT%
 echo.
 echo 首次运行会自动下载模型（约1.4GB），请耐心等待...
-echo 启动后访问: http://localhost:%PORT%/?text=你好^&speaker=audio/花魁.wav
+echo 启动后访问: http://localhost:%PORT%/?text=你好
 echo.
 
 python api_server.py
