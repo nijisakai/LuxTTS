@@ -159,7 +159,7 @@ cd LuxTTS
 
 1. **构建需要网络**：构建阶段会下载约 1.4GB 模型文件（LuxTTS + Whisper），全部打包进镜像，构建完成后运行完全离线
 2. **参考音频要求**：至少 3 秒，支持 wav/mp3 格式，放入 `audio/` 目录即可
-3. **网络问题**：如果构建时遇到 apt 源连接失败，Dockerfile 已配置清华 HTTPS 镜像源；HuggingFace 下载慢可在 Dockerfile 中添加 `ENV HF_ENDPOINT=https://hf-mirror.com`
+3. **网络问题**：如果构建时遇到 apt 源连接失败，Dockerfile 已配置清华 HTTPS 镜像源；HuggingFace 已默认使用国内镜像（`HF_ENDPOINT=https://hf-mirror.com`）
 4. **显存占用**：约 1GB VRAM，几乎所有独立 GPU 都能运行
 5. **Podman SELinux**：volume 挂载已使用 `:z` 标记，`podman-run.sh` 已添加 `--security-opt=label=disable`
 
