@@ -1,10 +1,11 @@
+import os
 import torch
 from zipvoice.modeling_utils import process_audio, generate, load_models_gpu, load_models_cpu
 from zipvoice.onnx_modeling import generate_cpu
 
 class LuxTTS:
     """
-    LuxTTS class for encoding prompt and generating speech on cpu/cuda/mps.
+    LuxTTS class for encoding prompt and generating speech on cpu/cuda/mps/npu.
     """
 
     def __init__(self, model_path='YatharthS/LuxTTS', device='cuda', threads=4):
@@ -20,7 +21,15 @@ class LuxTTS:
                 print("CUDA not available, switching to CPU")
                 device = 'cpu'
 
-        if device == 'cpu':
+        if device == 'npu':
+            openvino_device = os.environ.get("OPENVINO_DEVICE", "NPU")
+            providers = [
+                ("OpenVINOExecutionProvider", {"device_type": openvino_device}),
+                "CPUExecutionProvider",
+            ]
+            model, feature_extractor, vocos, tokenizer, transcriber = load_models_cpu(model_path, threads, providers=providers)
+            print(f"Loading model on Intel NPU (OpenVINO device={openvino_device})")
+        elif device == 'cpu':
             model, feature_extractor, vocos, tokenizer, transcriber = load_models_cpu(model_path, threads)
             print("Loading model on CPU")
         else:
@@ -54,7 +63,7 @@ class LuxTTS:
         else:
             self.vocos.return_48k = True
 
-        if self.device == 'cpu':
+        if self.device in ('cpu', 'npu'):
             final_wav = generate_cpu(prompt_tokens, prompt_features_lens, prompt_features, prompt_rms, text, self.model, self.vocos, self.tokenizer, num_step=num_steps, guidance_scale=guidance_scale, t_shift=t_shift, speed=speed)
         else:
             final_wav = generate(prompt_tokens, prompt_features_lens, prompt_features, prompt_rms, text, self.model, self.vocos, self.tokenizer, num_step=num_steps, guidance_scale=guidance_scale, t_shift=t_shift, speed=speed)

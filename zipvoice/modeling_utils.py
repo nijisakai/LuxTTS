@@ -124,7 +124,7 @@ def load_models_gpu(model_path=None, device="cuda"):
     params.sampling_rate = model_config["feature"]["sampling_rate"]
     return model, feature_extractor, vocos, tokenizer, transcriber
 
-def load_models_cpu(model_path = None, num_thread=2):
+def load_models_cpu(model_path = None, num_thread=2, providers=None):
     params = LuxTTSConfig()
     params.seed = 42
 
@@ -143,7 +143,7 @@ def load_models_cpu(model_path = None, num_thread=2):
     with open(model_config, "r") as f:
         model_config = json.load(f)
 
-    model = OnnxModel(text_encoder_path, fm_decoder_path, num_thread=num_thread)
+    model = OnnxModel(text_encoder_path, fm_decoder_path, num_thread=num_thread, providers=providers)
 
     vocos = Vocos.from_hparams(f'{model_path}/vocoder/config.yaml').eval()
     parametrize.remove_parametrizations(vocos.upsampler.upsample_layers[0], "weight")

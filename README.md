@@ -2,11 +2,14 @@
 
 基于 [LuxTTS](https://github.com/ysharma3501/LuxTTS) 的 Docker 容器化 API 服务，支持 Docker 和 Podman。
 
-## 构建镜像
+## 三个版本
 
-- **底层镜像（GPU）**：`nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04`
-- **底层镜像（CPU）**：`ubuntu:22.04`
-- **GPU 支持**：RTX 4090、RTX 5080 等（PyTorch cu128，覆盖 sm_89 ~ sm_120）
+| 版本 | 底层镜像 | 推理引擎 | 适用场景 |
+|------|---------|---------|----------|
+| **GPU** | `nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04` | PyTorch CUDA (cu128) | NVIDIA GPU（RTX 4090/5080 等） |
+| **CPU** | `ubuntu:22.04` | ONNX Runtime CPU | 无 GPU 机器，兼容性最好 |
+| **NPU** | `ubuntu:22.04` | ONNX Runtime + OpenVINO | Intel NPU（Core Ultra 等） |
+
 - **模型来源**：构建时自动从 HuggingFace 下载并打包进镜像，运行时完全离线
 - **离线运行**：构建完成后不再需要网络连接
 - **输出音频**：48kHz WAV
@@ -21,6 +24,12 @@
 ### CPU 版本
 - Docker（含 Docker Compose）或 Podman
 - 无需 GPU，推理较慢但兼容性好
+
+### NPU 版本
+- Intel Core Ultra 或其他带 NPU 的 Intel 处理器
+- 已安装 Intel NPU 驱动（`intel-npu-driver`）
+- 宿主机能看到 `/dev/accel/accel0` 设备
+- Docker（含 Docker Compose）或 Podman
 
 ## 快速开始
 
@@ -76,6 +85,33 @@ podman-compose -f docker-compose.cpu.yml build && podman-compose -f docker-compo
 ```
 
 > CPU 版本使用 `whisper-tiny` 模型（GPU 版用 `whisper-base`），镜像体积更小，但推理速度较慢。
+
+### NPU 版本（Intel Core Ultra）
+
+#### Docker
+
+```bash
+git clone https://github.com/nijisakai/LuxTTS.git
+cd LuxTTS
+
+# 构建并启动 NPU 版本
+docker compose -f docker-compose.npu.yml build && docker compose -f docker-compose.npu.yml up -d
+
+# 查看日志
+docker logs -f luxtts-api
+```
+
+#### Podman
+
+```bash
+git clone https://github.com/nijisakai/LuxTTS.git
+cd LuxTTS
+
+podman-compose -f docker-compose.npu.yml build && podman-compose -f docker-compose.npu.yml up -d
+```
+
+> NPU 版本通过 ONNX Runtime + OpenVINO 执行推理，Text Encoder 和 FM Decoder 在 NPU 上运行，Vocoder 在 CPU 上运行。
+> 如果系统没有 NPU 设备，可将 `OPENVINO_DEVICE` 环境变量改为 `CPU`，仍可享受 OpenVINO 对 Intel CPU 的加速。
 
 ## 注意事项
 
@@ -147,7 +183,8 @@ curl http://localhost:9880/health
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `DEVICE` | `cuda` | 运行设备（`cuda` 或 `cpu`） |
+| `DEVICE` | `cuda` | 运行设备（`cuda`、`cpu`、`npu`） |
+| `OPENVINO_DEVICE` | `NPU` | OpenVINO 目标设备（`NPU`、`CPU`、`GPU`），仅 `DEVICE=npu` 时生效 |
 | `PORT` | `9880` | 服务端口 |
 | `NUM_STEPS` | `4` | 采样步数（3-4 为最佳效率） |
 | `GUIDANCE_SCALE` | `3.0` | 引导尺度 |
@@ -169,6 +206,11 @@ docker compose build && docker compose up -d
 docker logs -f luxtts-api
 docker compose -f docker-compose.cpu.yml down
 docker compose -f docker-compose.cpu.yml build && docker compose -f docker-compose.cpu.yml up -d
+
+# ---- NPU 版本 ----
+docker logs -f luxtts-api
+docker compose -f docker-compose.npu.yml down
+docker compose -f docker-compose.npu.yml build && docker compose -f docker-compose.npu.yml up -d
 
 # Podman 查看日志
 podman logs -f luxtts-api
