@@ -34,7 +34,9 @@ set SPEED=1.0
 set RMS=0.01
 set REF_DURATION=5
 set THREADS=4
-set HF_ENDPOINT=https://hf-mirror.com
+:: Windows 原生环境可直连 huggingface.co，不设 HF_ENDPOINT
+:: 如需镜像可取消下行注释:
+:: set HF_ENDPOINT=https://hf-mirror.com
 
 echo 设备: Intel NPU (OpenVINO)
 echo 端口: %PORT%
