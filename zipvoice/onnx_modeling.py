@@ -186,6 +186,15 @@ def generate_cpu(prompt_tokens, prompt_features_lens, prompt_features, prompt_rm
     tokens = tokenizer.texts_to_token_ids([text])
     speed = speed * 1.3 ## default is too slow
 
+    # Compensate ONNX text encoder duration formula:
+    # GPU:  features_len = P + ceil(P/Tp * Tt / speed)
+    # ONNX: features_len = ceil(P/Tp * (Tp+Tt) / speed)
+    # Adjusted speed makes ONNX produce the same total frame count as GPU.
+    Tp = len(prompt_tokens[0])
+    Tt = len(tokens[0])
+    if Tp > 0 and Tt > 0:
+        speed = (Tp + Tt) / (Tp + Tt / speed)
+
     pred_features = sample(
         model=model,
         tokens=tokens,
