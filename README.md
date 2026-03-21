@@ -113,6 +113,27 @@ podman-compose -f docker-compose.npu.yml build && podman-compose -f docker-compo
 > NPU 版本通过 ONNX Runtime + OpenVINO 执行推理，Text Encoder 和 FM Decoder 在 NPU 上运行，Vocoder 在 CPU 上运行。
 > 如果系统没有 NPU 设备，可将 `OPENVINO_DEVICE` 环境变量改为 `CPU`，仍可享受 OpenVINO 对 Intel CPU 的加速。
 
+> **注意**：Linux Docker/Podman 需要 `/dev/accel` 设备。WSL2 目前不支持 NPU 透传，Windows 用户请用下面的原生方式。
+
+### NPU 版本 - Windows 原生（推荐）
+
+Windows 下 Docker/Podman 无法访问 Intel NPU，需要用原生 Python 运行：
+
+```powershell
+git clone https://github.com/nijisakai/LuxTTS.git
+cd LuxTTS
+
+# 一键安装（创建虚拟环境 + 安装所有依赖）
+.\install-npu-windows.bat
+
+# 启动服务
+.\start-npu.bat
+```
+
+启动后访问：`http://localhost:9880/?text=你好&speaker=audio/花魁.wav`
+
+> 此方式 GPU 完全不参与，TTS 推理走 Intel NPU，GPU 可以专心做其他任务（游戏、渲染、其他 AI 等）。
+
 ## 注意事项
 
 1. **构建需要网络**：构建阶段会下载约 1.4GB 模型文件（LuxTTS + Whisper），全部打包进镜像，构建完成后运行完全离线
