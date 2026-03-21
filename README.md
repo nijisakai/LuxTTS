@@ -2,57 +2,22 @@
 
 基于 [LuxTTS](https://github.com/ysharma3501/LuxTTS) 的 Docker 容器化 API 服务，支持 Docker 和 Podman。
 
-## 三个版本
+## 特性
 
-| 版本 | 镜像名称 | 容器名称 | 底层镜像 | 推理引擎 | 适用场景 |
-|------|---------|---------|---------|---------|----------|
-| **GPU** | `luxtts-gpu` | `luxtts-gpu` | `nvidia/cuda:12.8.1` | PyTorch CUDA (cu128) | NVIDIA GPU（RTX 4090/5080 等） |
-| **CPU** | `luxtts-cpu` | `luxtts-cpu` | `ubuntu:22.04` | ONNX Runtime CPU | 无 GPU 机器，兼容性最好 |
-| **NPU** | `luxtts-npu` | `luxtts-npu` | `ubuntu:22.04` | ONNX Runtime + OpenVINO | Intel NPU（Core Ultra 等） |
-
-- **模型来源**：构建时自动从 HuggingFace 下载并打包进镜像，运行时完全离线
-- **离线运行**：构建完成后不再需要网络连接
+- **GPU 加速**：PyTorch CUDA (cu128)，支持 RTX 4090/5080 等
+- **离线运行**：模型构建时打包进镜像，运行时完全离线
 - **输出音频**：48kHz WAV
-
-## 运行环境说明
-
-| 操作 | 终端环境 |
-|------|---------|
-| GPU / CPU Docker 构建和运行 | 🐧 **WSL2 终端** 或 Linux 终端 |
-| NPU Docker 构建和运行 | 🐧 **原生 Linux 终端**（WSL2 不支持 NPU 透传） |
-| NPU Windows 原生运行 | 🪟 **Windows PowerShell** |
-| Podman 构建和运行 | 🐧 **WSL2 终端** 或 Linux 终端 |
+- **显存占用**：约 1GB VRAM
 
 ## 前置要求
 
-### GPU 版本
 - NVIDIA GPU
 - 已安装 [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
 - Docker（含 Docker Compose）或 Podman
 
-### CPU 版本
-- Docker（含 Docker Compose）或 Podman
-- 无需 GPU，推理较慢但兼容性好
-
-### NPU 版本（Docker）
-- Intel Core Ultra 或其他带 NPU 的 Intel 处理器
-- 已安装 Intel NPU 驱动（`intel-npu-driver`）
-- 宿主机能看到 `/dev/accel/accel0` 设备
-- **仅原生 Linux**，WSL2 不支持 NPU 透传
-
-### NPU 版本（Windows 原生）
-- Intel Core Ultra 或其他带 NPU 的 Intel 处理器
-- 已安装 Intel NPU 驱动
-- Python 3.10+
-- 无需 Docker
-
 ## 快速开始
 
-### GPU 版本
-
-> 🐧 以下命令在 **WSL2 终端** 或 **Linux 终端** 中执行
-
-#### Docker
+### Docker
 
 ```bash
 git clone https://github.com/nijisakai/LuxTTS.git
@@ -61,107 +26,22 @@ cd LuxTTS
 # 将参考音频放入 audio/ 目录（项目已包含示例音频）
 # cp /path/to/your_reference.wav audio/
 
-# 构建并启动（镜像名：luxtts-gpu）
+# 构建并启动
 docker compose build && docker compose up -d
 
 # 查看日志
 docker logs -f luxtts-gpu
 ```
 
-#### Podman
+### Podman
 
 ```bash
 git clone https://github.com/nijisakai/LuxTTS.git
 cd LuxTTS
-
 bash podman-run.sh
 ```
 
-### CPU 版本（无需 GPU）
-
-> 🐧 以下命令在 **WSL2 终端** 或 **Linux 终端** 中执行
-
-#### Docker
-
-```bash
-git clone https://github.com/nijisakai/LuxTTS.git
-cd LuxTTS
-
-# 构建并启动 CPU 版本（镜像名：luxtts-cpu）
-docker compose -f docker-compose.cpu.yml build && docker compose -f docker-compose.cpu.yml up -d
-
-# 查看日志
-docker logs -f luxtts-cpu
-```
-
-#### Podman
-
-```bash
-git clone https://github.com/nijisakai/LuxTTS.git
-cd LuxTTS
-
-podman-compose -f docker-compose.cpu.yml build && podman-compose -f docker-compose.cpu.yml up -d
-```
-
-> CPU 版本使用 `whisper-tiny` 模型（GPU 版用 `whisper-base`），镜像体积更小，但推理速度较慢。
-
-### NPU 版本 - Docker（Intel Core Ultra）
-
-> 🐧 以下命令在 **原生 Linux 终端** 中执行（WSL2 不支持 NPU 透传）
-
-#### Docker
-
-```bash
-git clone https://github.com/nijisakai/LuxTTS.git
-cd LuxTTS
-
-# 构建并启动 NPU 版本（镜像名：luxtts-npu）
-docker compose -f docker-compose.npu.yml build && docker compose -f docker-compose.npu.yml up -d
-
-# 查看日志
-docker logs -f luxtts-npu
-```
-
-#### Podman
-
-```bash
-git clone https://github.com/nijisakai/LuxTTS.git
-cd LuxTTS
-
-podman-compose -f docker-compose.npu.yml build && podman-compose -f docker-compose.npu.yml up -d
-```
-
-> NPU 版本通过 ONNX Runtime + OpenVINO 执行推理，Text Encoder 和 FM Decoder 在 NPU 上运行，Vocoder 在 CPU 上运行。
-> 如果系统没有 NPU 设备，可将 `OPENVINO_DEVICE` 环境变量改为 `CPU`，仍可享受 OpenVINO 对 Intel CPU 的加速。
-
-### NPU 版本 - Windows 原生（推荐 Windows 用户使用）
-
-> 🪟 以下命令在 **Windows PowerShell** 中执行
-
-Windows 下 Docker/WSL2 无法访问 Intel NPU，需要用原生 Python 运行：
-
-```powershell
-git clone https://github.com/nijisakai/LuxTTS.git
-cd LuxTTS
-
-# 一键安装（创建虚拟环境 + 安装所有依赖）
-.\install-npu-windows.bat
-
-# 启动服务
-.\start-npu.bat
-```
-
 启动后访问：`http://localhost:9880/?text=你好&speaker=audio/花魁.wav`
-
-> 此方式 GPU 完全不参与，TTS 推理走 Intel NPU，GPU 可以专心做其他任务（游戏、渲染、其他 AI 等）。
-
-## 注意事项
-
-1. **构建需要网络**：构建阶段会下载约 1.4GB 模型文件（LuxTTS + Whisper），全部打包进镜像，构建完成后运行完全离线
-2. **参考音频要求**：至少 3 秒，支持 wav/mp3 格式，放入 `audio/` 目录即可
-3. **网络问题**：如果构建时遇到 apt 源连接失败，Dockerfile 已配置清华 HTTPS 镜像源；HuggingFace 已默认使用国内镜像（`HF_ENDPOINT=https://hf-mirror.com`）
-4. **显存占用**：约 1GB VRAM，几乎所有独立 GPU 都能运行
-5. **Podman SELinux**：volume 挂载已使用 `:z` 标记，`podman-run.sh` 已添加 `--security-opt=label=disable`
 
 ## API 接口
 
@@ -173,6 +53,8 @@ cd LuxTTS
 GET  http://localhost:9880/?text=要合成的文本&speaker=audio/参考音频.wav
 POST http://localhost:9880/  (支持 form 和 JSON body)
 ```
+
+### 参数说明
 
 | 参数 | 必填 | 类型 | 默认值 | 说明 |
 |------|------|------|--------|------|
@@ -192,25 +74,23 @@ POST http://localhost:9880/  (支持 form 和 JSON body)
 
 ### 使用示例
 
-**浏览器直接访问（最简单）：**
+**浏览器直接访问：**
 ```
 http://localhost:9880/?text=你好,测试一下&speaker=audio/花魁.wav
 ```
 
-**带参数调整：**
+**GET 全参数示例：**
 ```
-http://localhost:9880/?text=你好&speaker=audio/花魁.wav&speed=1.2&t_shift=0.9&num_steps=4
+http://localhost:9880/?text=你好世界&speaker=audio/花魁.wav&num_steps=4&guidance_scale=3.0&t_shift=0.9&speed=1.0&rms=0.01&ref_duration=5&return_smooth=false
 ```
 
-**curl 命令（🐧 WSL / Linux）：**
+**curl（GET）：**
 ```bash
-# GET 请求 - 基础用法
 curl "http://localhost:9880/?text=你好世界&speaker=audio/花魁.wav" -o output.wav
+```
 
-# GET 请求 - 带参数
-curl "http://localhost:9880/?text=你好世界&speaker=audio/花魁.wav&speed=1.2&t_shift=0.9&num_steps=4&return_smooth=true" -o output.wav
-
-# POST JSON - 全参数
+**curl（POST JSON 全参数）：**
+```bash
 curl -X POST http://localhost:9880/ \
   -H "Content-Type: application/json" \
   -d '{
@@ -227,12 +107,8 @@ curl -X POST http://localhost:9880/ \
   -o output.wav
 ```
 
-**PowerShell（🪟 Windows）：**
+**PowerShell：**
 ```powershell
-# 基础用法
-Invoke-WebRequest "http://localhost:9880/?text=你好世界&speaker=audio/花魁.wav" -OutFile output.wav
-
-# 带参数
 Invoke-WebRequest "http://localhost:9880/?text=你好世界&speaker=audio/花魁.wav&speed=1.2&t_shift=0.9" -OutFile output.wav
 ```
 
@@ -257,12 +133,11 @@ curl http://localhost:9880/health
 
 ## 环境变量
 
-可在对应的 `docker-compose*.yml` 或启动命令中修改：
+可在 `docker-compose.yml` 或启动命令中修改：
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `DEVICE` | `cuda` | 运行设备（`cuda`、`cpu`、`npu`） |
-| `OPENVINO_DEVICE` | `NPU` | OpenVINO 目标设备（`NPU`、`CPU`、`GPU`），仅 `DEVICE=npu` 时生效 |
+| `DEVICE` | `cuda` | 运行设备 |
 | `PORT` | `9880` | 服务端口 |
 | `NUM_STEPS` | `4` | 采样步数（3-4 为最佳效率） |
 | `GUIDANCE_SCALE` | `3.0` | 引导尺度 |
@@ -270,69 +145,38 @@ curl http://localhost:9880/health
 | `SPEED` | `1.0` | 语速（1.0=正常，>1.0=加速） |
 | `RMS` | `0.01` | 音量控制（越大越响） |
 | `REF_DURATION` | `5` | 参考音频最大时长（秒） |
-| `THREADS` | `4` | CPU 线程数（仅 `DEVICE=cpu` 时生效） |
+| `THREADS` | `4` | CPU 线程数 |
 
 ## 管理命令
 
-> 🐧 以下命令在 **WSL2 终端** 或 **Linux 终端** 中执行
-
 ```bash
-# ---- GPU 版本 ----
 docker logs -f luxtts-gpu           # 查看日志
 docker compose down                  # 停止
 docker compose build && docker compose up -d  # 重新构建并启动
 
-# ---- CPU 版本 ----
-docker logs -f luxtts-cpu           # 查看日志
-docker compose -f docker-compose.cpu.yml down
-docker compose -f docker-compose.cpu.yml build && docker compose -f docker-compose.cpu.yml up -d
-
-# ---- NPU 版本（仅原生 Linux） ----
-docker logs -f luxtts-npu           # 查看日志
-docker compose -f docker-compose.npu.yml down
-docker compose -f docker-compose.npu.yml build && docker compose -f docker-compose.npu.yml up -d
-
-# ---- Podman ----
-podman logs -f luxtts-gpu           # GPU 版本日志
+# Podman
+podman logs -f luxtts-gpu
 ```
 
-## 镜像迁移（离线部署到其他机器）
-
-构建完成后，可以将镜像导出到其他机器直接使用，无需网络。
-
-> 🐧 以下命令在 **WSL2 终端** 或 **Linux 终端** 中执行
-
-### 导出镜像（当前机器）
+## 镜像迁移（离线部署）
 
 ```bash
-# GPU 版本
+# 导出
 docker save luxtts-gpu | gzip > luxtts-gpu.tar.gz
 
-# CPU 版本
-docker save luxtts-cpu | gzip > luxtts-cpu.tar.gz
-
-# NPU 版本
-docker save luxtts-npu | gzip > luxtts-npu.tar.gz
-
-# Podman 导出（以 GPU 版本为例）
-podman save luxtts-gpu | gzip > luxtts-gpu.tar.gz
-```
-
-### 导入镜像（目标机器）
-
-```bash
-# Docker 导入（以 GPU 版本为例）
+# 导入（目标机器）
 docker load < luxtts-gpu.tar.gz
-cd LuxTTS
-docker compose up -d
-
-# Podman 导入
-podman load < luxtts-gpu.tar.gz
-cd LuxTTS
-bash podman-run.sh
+cd LuxTTS && docker compose up -d
 ```
 
-> Docker 和 Podman 镜像格式互相兼容，`docker save` 导出的可以用 `podman load` 导入，反之亦然。
+> Docker 和 Podman 镜像格式互相兼容。
+
+## 注意事项
+
+1. **构建需要网络**：构建阶段会下载约 1.4GB 模型文件（LuxTTS + Whisper），全部打包进镜像
+2. **参考音频要求**：至少 3 秒，支持 wav/mp3 格式，放入 `audio/` 目录即可
+3. **网络问题**：Dockerfile 已配置清华 HTTPS 镜像源；HuggingFace 已默认使用国内镜像（`HF_ENDPOINT=https://hf-mirror.com`）
+4. **Podman SELinux**：volume 挂载已使用 `:z` 标记
 
 ## 致谢
 
