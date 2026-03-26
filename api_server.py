@@ -25,7 +25,19 @@ app = Flask(__name__)
 tts_model: LuxTTS = None
 prompt_cache: dict = {}          # {cache_key: encode_dict}
 
-DEVICE = os.getenv("DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
+def _detect_device() -> str:
+    """自动检测可用设备：cuda > xpu（Intel Arc）> cpu"""
+    if torch.cuda.is_available():
+        return "cuda"
+    try:
+        import intel_extension_for_pytorch as ipex  # noqa: F401
+        if torch.xpu.is_available():
+            return "xpu"
+    except ImportError:
+        pass
+    return "cpu"
+
+DEVICE = os.getenv("DEVICE", _detect_device())
 THREADS = int(os.getenv("THREADS", "4"))
 NUM_STEPS = int(os.getenv("NUM_STEPS", "4"))
 GUIDANCE_SCALE = float(os.getenv("GUIDANCE_SCALE", "3.0"))

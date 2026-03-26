@@ -4,20 +4,27 @@
 
 ## 特性
 
-- **GPU 加速**：PyTorch CUDA (cu128)，支持 RTX 4090/5080 等
+- **NVIDIA GPU 加速**：PyTorch CUDA (cu128)，支持 RTX 4090/5080 等
+- **Intel Arc GPU 加速**：PyTorch XPU (IPEX)，支持 Arc A770/B580 等
 - **离线运行**：模型构建时打包进镜像，运行时完全离线
 - **输出音频**：48kHz WAV
 - **显存占用**：约 1GB VRAM
 
 ## 前置要求
 
+### NVIDIA GPU
 - NVIDIA GPU
 - 已安装 [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
 - Docker（含 Docker Compose）或 Podman
 
+### Intel Arc GPU
+- Intel Arc GPU（A 系列或 B 系列）
+- 已安装 [Intel GPU 驱动](https://dgpu-docs.intel.com/driver/installation.html)
+- Docker（含 Docker Compose）
+
 ## 快速开始
 
-### Docker
+### NVIDIA GPU（Docker）
 
 ```bash
 git clone https://github.com/nijisakai/LuxTTS.git
@@ -33,12 +40,26 @@ docker compose build && docker compose up -d
 docker logs -f luxtts-gpu
 ```
 
-### Podman
+### NVIDIA GPU（Podman）
 
 ```bash
 git clone https://github.com/nijisakai/LuxTTS.git
 cd LuxTTS
 bash podman-run.sh
+```
+
+### Intel Arc GPU（Docker）
+
+```bash
+git clone https://github.com/nijisakai/LuxTTS.git
+cd LuxTTS
+
+# 构建并启动（使用 Intel Arc 专用 Compose 文件）
+docker compose -f docker-compose-arc.yml build
+docker compose -f docker-compose-arc.yml up -d
+
+# 查看日志
+docker logs -f luxtts-arc
 ```
 
 启动后访问：`http://localhost:9880/?text=你好&speaker=audio/花魁.wav`
@@ -116,7 +137,8 @@ Invoke-WebRequest "http://localhost:9880/?text=你好世界&speaker=audio/花魁
 
 ```bash
 curl http://localhost:9880/health
-# 返回: {"status": "ok", "device": "cuda"}
+# NVIDIA GPU 返回: {"status": "ok", "device": "cuda"}
+# Intel Arc 返回:  {"status": "ok", "device": "xpu"}
 ```
 
 ## 示例音频
@@ -137,7 +159,7 @@ curl http://localhost:9880/health
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `DEVICE` | `cuda` | 运行设备 |
+| `DEVICE` | 自动检测（cuda > xpu > cpu） | 运行设备（`cuda`=NVIDIA，`xpu`=Intel Arc，`cpu`=纯 CPU） |
 | `PORT` | `9880` | 服务端口 |
 | `NUM_STEPS` | `4` | 采样步数（3-4 为最佳效率） |
 | `GUIDANCE_SCALE` | `3.0` | 引导尺度 |
@@ -150,11 +172,17 @@ curl http://localhost:9880/health
 ## 管理命令
 
 ```bash
+# NVIDIA GPU
 docker logs -f luxtts-gpu           # 查看日志
 docker compose down                  # 停止
 docker compose build && docker compose up -d  # 重新构建并启动
 
-# Podman
+# Intel Arc GPU
+docker logs -f luxtts-arc           # 查看日志
+docker compose -f docker-compose-arc.yml down
+docker compose -f docker-compose-arc.yml build && docker compose -f docker-compose-arc.yml up -d
+
+# Podman（NVIDIA）
 podman logs -f luxtts-gpu
 ```
 
@@ -177,6 +205,7 @@ cd LuxTTS && docker compose up -d
 2. **参考音频要求**：至少 3 秒，支持 wav/mp3 格式，放入 `audio/` 目录即可
 3. **网络问题**：Dockerfile 已配置清华 HTTPS 镜像源；HuggingFace 已默认使用国内镜像（`HF_ENDPOINT=https://hf-mirror.com`）
 4. **Podman SELinux**：volume 挂载已使用 `:z` 标记
+5. **Intel Arc 驱动**：运行 Intel Arc 版本前需安装 Linux 下的 [Intel GPU 驱动](https://dgpu-docs.intel.com/driver/installation.html)，并确认 `/dev/dri` 设备存在
 
 ## 致谢
 

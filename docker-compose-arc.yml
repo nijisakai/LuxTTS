@@ -1,0 +1,38 @@
+# docker-compose-arc.yml — Intel Arc GPU (XPU) 版本
+# 用法:
+#   docker compose -f docker-compose-arc.yml build
+#   docker compose -f docker-compose-arc.yml up -d
+#
+# 前置要求:
+#   - Intel Arc GPU + 已安装 Intel GPU 驱动
+#   - 已安装 Intel GPU Docker 插件（intel-gpu-tools / docker-plugin-intel-gpu）
+#   参考: https://dgpu-docs.intel.com/driver/installation.html
+
+services:
+  luxtts-arc:
+    image: luxtts-arc
+    build:
+      context: .
+      dockerfile: Dockerfile.arc
+      network: host
+    container_name: luxtts-arc
+    ports:
+      - "9880:9880"
+    volumes:
+      - ./audio:/app/audio:z
+    environment:
+      - DEVICE=xpu
+      - PORT=9880
+      - NUM_STEPS=4
+      - GUIDANCE_SCALE=3.0
+      - T_SHIFT=0.5
+      - SPEED=1.0
+      - RMS=0.01
+      - REF_DURATION=5
+      - THREADS=4
+    devices:
+      - /dev/dri:/dev/dri          # 挂载 Intel GPU 设备节点
+    group_add:
+      - video                       # 赋予 GPU 访问权限（部分系统需要）
+      - render                      # 赋予 render 设备访问权限
+    restart: unless-stopped
