@@ -1,0 +1,53 @@
+# Intel Arc GPU 构建（via intel-extension-for-pytorch / XPU）
+FROM docker.1ms.run/intel/oneapi-basekit:2024.2.1-0-devel-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    HF_ENDPOINT=https://hf-mirror.com
+
+# 使用清华 HTTPS 镜像源
+RUN sed -i 's|http://archive.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list && \
+    sed -i 's|http://security.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list && \
+    apt-get update && apt-get install -y --no-install-recommends \
+        python3 python3-pip python3-dev python3-venv \
+        git build-essential libsndfile1 ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir --upgrade pip && \
+    pip3 install --no-cache-dir uv flask soundfile
+
+# 安装 CPU 版 PyTorch（XPU 通过 IPEX 提供）
+RUN uv pip install --system --no-cache torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+# 安装 Intel Extension for PyTorch（XPU / Arc GPU 支持）
+RUN uv pip install --system --no-cache intel-extension-for-pytorch
+
+# 安装其它依赖
+RUN uv pip install --system --no-cache -r requirements.txt
+
+# 复制项目代码
+COPY . .
+
+RUN mkdir -p /app/audio
+
+# 构建时预下载模型
+RUN python3 -c "\
+from huggingface_hub import snapshot_download; \
+snapshot_download('YatharthS/LuxTTS'); \
+print('LuxTTS model downloaded')"
+RUN python3 -c "\
+from transformers import pipeline; \
+pipeline('automatic-speech-recognition', model='openai/whisper-base'); \
+print('Whisper model downloaded')"
+
+EXPOSE 9880
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9880/health')" || exit 1
+
+CMD ["python3", "api_server.py"]

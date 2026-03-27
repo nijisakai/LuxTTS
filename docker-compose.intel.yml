@@ -1,0 +1,33 @@
+# docker-compose.intel.yml — Intel Arc GPU (XPU)
+# 用法:
+#   Docker:  docker compose -f docker-compose.intel.yml up -d
+#   Podman:  podman-compose -f docker-compose.intel.yml up -d
+
+services:
+  luxtts:
+    image: luxtts-intel
+    build:
+      context: .
+      dockerfile: Dockerfile.intel
+      network: host
+    container_name: luxtts-intel
+    ports:
+      - "9880:9880"
+    volumes:
+      - ./audio:/app/audio:z          # :z 标记兼容 Podman SELinux
+    environment:
+      - DEVICE=xpu
+      - PORT=9880
+      - NUM_STEPS=4
+      - GUIDANCE_SCALE=3.0
+      - T_SHIFT=0.5
+      - SPEED=1.0
+      - RMS=0.01
+      - REF_DURATION=5
+      - THREADS=4
+    devices:
+      - /dev/dri:/dev/dri             # Intel GPU 设备节点
+    group_add:
+      - video
+      - render
+    restart: unless-stopped

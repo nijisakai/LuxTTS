@@ -14,7 +14,7 @@ import torch
 import soundfile as sf
 from flask import Flask, request, Response, jsonify
 
-from zipvoice.luxvoice import LuxTTS
+from zipvoice.luxvoice import LuxTTS, _xpu_is_available
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -25,19 +25,18 @@ app = Flask(__name__)
 tts_model: LuxTTS = None
 prompt_cache: dict = {}          # {cache_key: encode_dict}
 
-def _detect_device() -> str:
-    """自动检测可用设备：cuda > xpu（Intel Arc）> cpu"""
+def _detect_default_device() -> str:
+    """Return the best available device when DEVICE env var is not set."""
     if torch.cuda.is_available():
         return "cuda"
-    try:
-        import intel_extension_for_pytorch as ipex  # noqa: F401
-        if torch.xpu.is_available():
-            return "xpu"
-    except ImportError:
-        pass
+    if _xpu_is_available():
+        return "xpu"
+    if torch.backends.mps.is_available():
+        return "mps"
     return "cpu"
 
-DEVICE = os.getenv("DEVICE", _detect_device())
+
+DEVICE = os.getenv("DEVICE", _detect_default_device())
 THREADS = int(os.getenv("THREADS", "4"))
 NUM_STEPS = int(os.getenv("NUM_STEPS", "4"))
 GUIDANCE_SCALE = float(os.getenv("GUIDANCE_SCALE", "3.0"))
@@ -165,7 +164,19 @@ def synthesize():
 @app.route("/health", methods=["GET"])
 def health():
     """健康检查"""
-    return jsonify({"status": "ok", "device": DEVICE})
+    info = {"status": "ok", "device": DEVICE}
+
+    # Intel NPU via OpenVINO
+    try:
+        import onnxruntime as ort
+        info["npu_available"] = "OpenVINOExecutionProvider" in ort.get_available_providers()
+    except Exception:
+        info["npu_available"] = False
+
+    # Intel Arc GPU (XPU)
+    info["xpu_available"] = _xpu_is_available()
+
+    return jsonify(info)
 
 
 if __name__ == "__main__":
