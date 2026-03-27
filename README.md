@@ -5,7 +5,8 @@
 ## 特性
 
 - **NVIDIA GPU 加速**：PyTorch CUDA (cu128)，支持 RTX 4090/5080 等
-- **Intel Arc GPU 加速**：PyTorch XPU (IPEX)，支持 Arc A770/B580 等
+- **Intel Arc GPU 加速**：通过 Intel Extension for PyTorch (IPEX / XPU) 支持 Intel Arc A 系列及 Battlemage 显卡
+- **Intel NPU 加速**：通过 OpenVINO ONNX Runtime 支持 Intel Core Ultra NPU（Meteor Lake / Lunar Lake）
 - **离线运行**：模型构建时打包进镜像，运行时完全离线
 - **输出音频**：48kHz WAV
 - **显存占用**：约 1GB VRAM
@@ -18,9 +19,44 @@
 - Docker（含 Docker Compose）或 Podman
 
 ### Intel Arc GPU
-- Intel Arc GPU（A 系列或 B 系列）
-- 已安装 [Intel GPU 驱动](https://dgpu-docs.intel.com/driver/installation.html)
-- Docker（含 Docker Compose）
+- Intel Arc 独立显卡（A 系列 / Battlemage）或带 Xe 核显的处理器
+- 已安装 Intel GPU 驱动（`/dev/dri` 可用）
+- Docker 或 Podman
+
+### Intel NPU
+- 搭载内置 NPU 的 Intel 处理器（Core Ultra / Meteor Lake / Lunar Lake）
+- 已安装 Intel NPU 驱动
+- [OpenVINO Runtime](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html) 及 ONNX Runtime OpenVINO EP
+
+## 检测硬件可用性
+
+### 检测 Intel NPU 是否可用
+
+```bash
+python3 -c "
+import onnxruntime as ort
+providers = ort.get_available_providers()
+print('可用 Providers:', providers)
+print('NPU 可用:', 'OpenVINOExecutionProvider' in providers)
+"
+```
+
+### 检测 Intel Arc GPU (XPU) 是否可用
+
+```bash
+# 方法一：PyTorch 原生 XPU（PyTorch >= 2.4）
+python3 -c "import torch; print('XPU 可用:', torch.xpu.is_available())"
+
+# 方法二：intel-extension-for-pytorch
+python3 -c "import intel_extension_for_pytorch as ipex; print('XPU 可用:', ipex.xpu.is_available())"
+```
+
+### 健康检查端点（同时报告 XPU/NPU 状态）
+
+```bash
+curl http://localhost:9880/health
+# 返回示例: {"device": "xpu", "npu_available": false, "status": "ok", "xpu_available": true}
+```
 
 ## 快速开始
 
@@ -53,13 +89,23 @@ bash podman-run.sh
 ```bash
 git clone https://github.com/nijisakai/LuxTTS.git
 cd LuxTTS
+docker compose -f docker-compose.intel.yml build && docker compose -f docker-compose.intel.yml up -d
+docker logs -f luxtts-intel
+```
 
-# 构建并启动（使用 Intel Arc 专用 Compose 文件）
-docker compose -f docker-compose-arc.yml build
-docker compose -f docker-compose-arc.yml up -d
+### Intel Arc GPU（Podman）
 
-# 查看日志
-docker logs -f luxtts-arc
+```bash
+git clone https://github.com/nijisakai/LuxTTS.git
+cd LuxTTS
+bash podman-run-intel.sh
+```
+
+### Intel NPU（直接运行，无需 Docker）
+
+```bash
+pip install onnxruntime-openvino   # 含 OpenVINO EP
+DEVICE=npu OPENVINO_DEVICE=NPU python3 api_server.py
 ```
 
 启动后访问：`http://localhost:9880/?text=你好&speaker=audio/花魁.wav`
@@ -137,8 +183,7 @@ Invoke-WebRequest "http://localhost:9880/?text=你好世界&speaker=audio/花魁
 
 ```bash
 curl http://localhost:9880/health
-# NVIDIA GPU 返回: {"status": "ok", "device": "cuda"}
-# Intel Arc 返回:  {"status": "ok", "device": "xpu"}
+# 返回: {"device": "cuda", "npu_available": false, "status": "ok", "xpu_available": false}
 ```
 
 ## 示例音频
@@ -155,11 +200,11 @@ curl http://localhost:9880/health
 
 ## 环境变量
 
-可在 `docker-compose.yml` 或启动命令中修改：
+可在 `docker-compose.yml` / `docker-compose.intel.yml` 或启动命令中修改：
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `DEVICE` | 自动检测（cuda > xpu > cpu） | 运行设备（`cuda`=NVIDIA，`xpu`=Intel Arc，`cpu`=纯 CPU） |
+| `DEVICE` | 自动检测 | 运行设备：`cuda` / `xpu` / `mps` / `npu` / `cpu` |
 | `PORT` | `9880` | 服务端口 |
 | `NUM_STEPS` | `4` | 采样步数（3-4 为最佳效率） |
 | `GUIDANCE_SCALE` | `3.0` | 引导尺度 |
@@ -167,23 +212,25 @@ curl http://localhost:9880/health
 | `SPEED` | `1.0` | 语速（1.0=正常，>1.0=加速） |
 | `RMS` | `0.01` | 音量控制（越大越响） |
 | `REF_DURATION` | `5` | 参考音频最大时长（秒） |
-| `THREADS` | `4` | CPU 线程数 |
+| `THREADS` | `4` | CPU 线程数（NPU/CPU 模式使用） |
+| `OPENVINO_DEVICE` | `NPU` | OpenVINO 后端设备（`NPU` / `GPU` / `CPU`） |
 
 ## 管理命令
 
 ```bash
 # NVIDIA GPU
-docker logs -f luxtts-gpu           # 查看日志
-docker compose down                  # 停止
-docker compose build && docker compose up -d  # 重新构建并启动
+docker logs -f luxtts-gpu
+docker compose down
+docker compose build && docker compose up -d
 
 # Intel Arc GPU
-docker logs -f luxtts-arc           # 查看日志
-docker compose -f docker-compose-arc.yml down
-docker compose -f docker-compose-arc.yml build && docker compose -f docker-compose-arc.yml up -d
+docker logs -f luxtts-intel
+docker compose -f docker-compose.intel.yml down
+docker compose -f docker-compose.intel.yml build && docker compose -f docker-compose.intel.yml up -d
 
-# Podman（NVIDIA）
+# Podman
 podman logs -f luxtts-gpu
+podman logs -f luxtts-intel
 ```
 
 ## 镜像迁移（离线部署）
@@ -205,10 +252,14 @@ cd LuxTTS && docker compose up -d
 2. **参考音频要求**：至少 3 秒，支持 wav/mp3 格式，放入 `audio/` 目录即可
 3. **网络问题**：Dockerfile 已配置清华 HTTPS 镜像源；HuggingFace 已默认使用国内镜像（`HF_ENDPOINT=https://hf-mirror.com`）
 4. **Podman SELinux**：volume 挂载已使用 `:z` 标记
-5. **Intel Arc 驱动**：运行 Intel Arc 版本前需安装 Linux 下的 [Intel GPU 驱动](https://dgpu-docs.intel.com/driver/installation.html)，并确认 `/dev/dri` 设备存在
+5. **Intel Arc GPU**：需要 Linux 且已安装 Intel GPU 驱动（`/dev/dri/renderD*` 设备节点），推荐 Ubuntu 22.04+
+6. **Intel NPU**：需要安装 Intel NPU 驱动及 OpenVINO Runtime；NPU 模式下使用 ONNX 模型，不需要 PyTorch GPU
 
 ## 致谢
 
 - [LuxTTS](https://github.com/ysharma3501/LuxTTS) — 原始项目
 - [ZipVoice](https://github.com/k2-fsa/ZipVoice) — 模型架构
 - [Vocos](https://github.com/gemelo-ai/vocos.git) — 声码器
+- [Intel Extension for PyTorch](https://github.com/intel/intel-extension-for-pytorch) — Intel Arc GPU 支持
+- [OpenVINO](https://github.com/openvinotoolkit/openvino) — Intel NPU 支持
+

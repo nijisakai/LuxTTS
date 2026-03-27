@@ -3,9 +3,23 @@ import torch
 from zipvoice.modeling_utils import process_audio, generate, load_models_gpu, load_models_cpu
 from zipvoice.onnx_modeling import generate_cpu
 
+
+def _xpu_is_available() -> bool:
+    """Return True if an Intel XPU (Arc GPU) is available via PyTorch or IPEX."""
+    # Native PyTorch XPU support (PyTorch >= 2.4)
+    if hasattr(torch, 'xpu') and torch.xpu.is_available():
+        return True
+    # Fallback: intel-extension-for-pytorch
+    try:
+        import intel_extension_for_pytorch as ipex
+        return ipex.xpu.is_available()
+    except Exception:
+        return False
+
+
 class LuxTTS:
     """
-    LuxTTS class for encoding prompt and generating speech on cpu/cuda/mps/npu.
+    LuxTTS class for encoding prompt and generating speech on cpu/cuda/mps/xpu/npu.
     """
 
     def __init__(self, model_path='YatharthS/LuxTTS', device='cuda', threads=4):
@@ -14,11 +28,23 @@ class LuxTTS:
 
         # Auto-detect better device if cuda is requested but not available
         if device == 'cuda' and not torch.cuda.is_available():
-            if torch.backends.mps.is_available():
+            if _xpu_is_available():
+                print("CUDA not available, switching to Intel XPU (Arc GPU)")
+                device = 'xpu'
+            elif torch.backends.mps.is_available():
                 print("CUDA not available, switching to MPS")
                 device = 'mps'
             else:
                 print("CUDA not available, switching to CPU")
+                device = 'cpu'
+
+        if device == 'xpu':
+            # Intel Arc GPU via intel-extension-for-pytorch
+            try:
+                import intel_extension_for_pytorch as ipex  # noqa: F401
+                print("Loading model on Intel XPU (Arc GPU) via IPEX")
+            except ImportError:
+                print("intel-extension-for-pytorch not found, falling back to CPU")
                 device = 'cpu'
 
         if device == 'npu':
@@ -45,7 +71,7 @@ class LuxTTS:
             print("Loading model on CPU")
         else:
             model, feature_extractor, vocos, tokenizer, transcriber = load_models_gpu(model_path, device=device)
-            print("Loading model on GPU")
+            print(f"Loading model on GPU (device={device})")
 
         self.model = model
         self.feature_extractor = feature_extractor
@@ -56,8 +82,6 @@ class LuxTTS:
         # NPU 模式下 PyTorch 张量仍在 CPU 上，仅 ONNX 走 OpenVINO
         self.torch_device = "cpu" if device == "npu" else device
         self.vocos.freq_range = 12000
-
-
 
     def encode_prompt(self, prompt_audio, duration=5, rms=0.001):
         """encodes audio prompt according to duration and rms(volume control)"""
